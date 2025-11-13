@@ -87,6 +87,40 @@ const allowedOrigins = [
   process.env.FRONTEND_URL2 as Maybe<string>,
 ].filter(Boolean) as string[];
 
+app.use((req:Request, res:Response, next:NextFunction) => {
+  const origin = req.headers.origin;
+  const userAgent = req.headers["user-agent"];
+
+  //  Block requests with no origin (Postman, curl, backend scripts)
+  if (!origin) {
+    console.log(" Blocked request: No Origin (probably Postman)");
+    return res.status(403).json({
+      success: false,
+      message: "Access denied: missing Origin header",
+    });
+  }
+
+  //  Block Postman and curl explicitly by user-agent
+  if (userAgent?.includes("Postman") || userAgent?.includes("curl")) {
+    console.log(" Blocked request: User-Agent:", userAgent);
+    return res.status(403).json({
+      success: false,
+      message: "Access denied: Postman or curl requests blocked",
+    });
+  }
+
+
+  if (!allowedOrigins.includes(origin)) {
+    console.log(` Blocked request from origin: ${origin}`);
+    return res.status(403).json({
+      success: false,
+      message: "Access denied: Origin not allowed",
+    });
+  }
+
+  next();
+});
+
 /* CORS middleware customized per your original logic */
 app.use(
   cors({
@@ -94,12 +128,16 @@ app.use(
         const formatted = now();
         LOG.cors(`[${formatted}] CORS blocked: ${origin}`).catch(() => undefined);
       // Allow requests with no origin (Postman, server-to-server)
-      if (!origin) return callback(null, false);
+      if (!origin){
+         console.log("no origin")
+         return callback(null, false);
+         
+      } 
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
-
+        console.log("wrong origin")
         return callback(null, false);
       }
 
